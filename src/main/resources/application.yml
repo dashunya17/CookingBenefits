@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: healthy-food-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cooking
+    username: root
+    password: 123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto:  update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+          default_schema: public
+          jdbc.lob.non_contextual_creation: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+  jackson:
+    serialization:
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+      security:
+        filter:
+          order: 0
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+app:
+  jwt:
+    secret: your-super-secret-key-change-in-production
+    expiration: 86400000
+cors:
+  allowed-origins: "http://localhost:3000,http://10.0.2.2:8080,http://localhost,http://127.0.0.1,capacitor://localhost,ionic://localhost"
+  allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+  allowed-headers: "*"
+  allow-credentials: true
+  logging:
+level:
+  org.springframework.security: DEBUG
+  org.springframework.web: DEBUG
+  org.hibernate.SQL: DEBUG
+  org.hibernate.type.descriptor.sql.BasicBinder: TRACE
