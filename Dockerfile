@@ -4,6 +4,9 @@ WORKDIR /src
 
 COPY . .
 
-RUN gradle installDist --no-build-cache --no-daemon
+RUN chmod +x gradlew
 
-CMD ./src
+
+RUN ./gradlew installDist -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxPermSize=512m"
+
+CMD ["./build/install/CookingBenefits/bin/CookingBenefits"]
