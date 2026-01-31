@@ -4,6 +4,6 @@ WORKDIR /src
 
 COPY . .
 
-RUN gradle installDist
+RUN gradle installDist --no-build-cache --no-daemon
 
 CMD ./src
