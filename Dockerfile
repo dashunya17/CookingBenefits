@@ -6,7 +6,7 @@ COPY . .
 
 RUN chmod +x gradlew
 
-RUN ./gradlew bootJar
+RUN ./gradlew build -x test
 
-
-CMD ["java", "-jar", "build/libs/CookingBenefits-*.jar"]
+# Найдем любой JAR файл
+CMD sh -c 'java -jar $(find . -name "*.jar" -type f | head -1)'

@@ -12,7 +12,9 @@ java {
     sourceCompatibility = '17'
     targetCompatibility = '17'
 }
-
+bootJar {
+    archiveFileName = 'healthy-food-backend.jar'
+}
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
