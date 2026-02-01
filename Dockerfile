@@ -6,7 +6,6 @@ COPY . .
 
 RUN chmod +x gradlew
 
-
-RUN ./gradlew installDist -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxPermSize=512m"
+RUN ./gradlew installDist
 
 CMD ["./build/install/CookingBenefits/bin/CookingBenefits"]
