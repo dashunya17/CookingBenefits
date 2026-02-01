@@ -6,6 +6,7 @@ COPY . .
 
 RUN chmod +x gradlew
 
-RUN ./gradlew installDist
+RUN ./gradlew bootJar
 
-CMD ["./build/install/CookingBenefits/bin/CookingBenefits"]
+
+CMD ["java", "-jar", "build/libs/CookingBenefits-*.jar"]
