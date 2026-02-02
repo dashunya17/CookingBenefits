@@ -3,9 +3,9 @@ spring:
     name: healthy-food-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/cooking
+    url: postgresql://root:78RAnG0eIxlXycr8b2tkJjBUPMwmA3pK@dpg-d5ug2fnfte5s73ealms0-a/cooking_v0g5
     username: root
-    password: 123
+    password: 78RAnG0eIxlXycr8b2tkJjBUPMwmA3pK
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -13,11 +13,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto:  update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
         jdbc:
           batch_size: 20
           default_schema: public
@@ -37,6 +37,7 @@ spring:
           order: 0
 server:
   port: 8080
+  address: 0.0.0.0
   servlet:
     context-path: /api
 app:
@@ -50,7 +51,7 @@ cors:
   allow-credentials: true
   logging:
 level:
-  org.springframework.security: DEBUG
-  org.springframework.web: DEBUG
-  org.hibernate.SQL: DEBUG
+  org.springframework.security: INFO
+  org.springframework.web: INFO
+  org.hibernate.SQL: WARN
   org.hibernate.type.descriptor.sql.BasicBinder: TRACE
