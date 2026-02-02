@@ -32,9 +32,6 @@ spring:
       fail-on-empty-beans: false
     deserialization:
       fail-on-unknown-properties: false
-      security:
-        filter:
-          order: 0
 server:
   port: 8080
   address: 0.0.0.0
