@@ -10,5 +10,4 @@ RUN ./gradlew build -x test
 
 EXPOSE 8080
 
-# Найдем любой JAR файл
-CMD sh -c 'java -jar $(find . -name "*.jar" -type f | head -1)'
+CMD ["java", "-Dserver.port=8080", "-Dserver.address=0.0.0.0", "-jar", "build/libs/healthy-food-backend.jar"]
