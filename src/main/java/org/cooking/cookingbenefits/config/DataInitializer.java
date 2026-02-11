@@ -16,7 +16,6 @@ public class DataInitializer {
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
 
-
     @Bean
     public CommandLineRunner initDatabase() {
         return args -> {
