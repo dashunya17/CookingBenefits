@@ -1,20 +1,22 @@
 package org.cooking.cookingbenefits.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "recipe_ingredients",
         uniqueConstraints = @UniqueConstraint(columnNames = {"recipe_id", "product_id"}))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"recipe", "product"}) // Исключаем связи из toString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true) // или только по id
 public class RecipeIngredient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include // Если хотите включить id в equals/hashCode
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

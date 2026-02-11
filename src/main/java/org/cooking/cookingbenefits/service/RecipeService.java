@@ -206,4 +206,90 @@ public class RecipeService {
         public double getMatchPercentage() { return matchPercentage; }
         public List<String> getMissingIngredients() { return missingIngredients; }
     }
+    @Transactional
+    public RecipeDTO createRecipe(RecipeDTO dto) {
+        Recipe recipe = new Recipe();
+        recipe.setTitle(dto.getTitle());
+        recipe.setDescription(dto.getDescription());
+        recipe.setCookingSteps(dto.getCookingSteps());
+        recipe.setCookingTimeMinutes(dto.getCookingTimeMinutes());
+        recipe.setDifficulty(dto.getDifficulty());
+        recipe.setServings(dto.getServings());
+        recipe.setCategory(dto.getCategory());
+        recipe.setImageUrl(dto.getImageUrl());
+        recipe.setIsApproved(true); // или берите из dto, если нужно
+
+        Recipe savedRecipe = recipeRepository.save(recipe);
+
+        if (dto.getIngredients() != null) {
+            for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
+                Product product = productRepository.findById(ingrDto.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + ingrDto.getProductId()));
+
+                RecipeIngredient ingredient = new RecipeIngredient();
+                ingredient.setRecipe(savedRecipe);
+                ingredient.setProduct(product);
+                ingredient.setQuantity(ingrDto.getQuantity());
+                ingredient.setUnit(ingrDto.getUnit());
+
+                recipeIngredientRepository.save(ingredient);
+            }
+        }
+
+        return convertToDTO(savedRecipe);
+    }
+
+    @Transactional
+    public RecipeDTO updateRecipe(Long id, RecipeDTO dto) {
+        Recipe recipe = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Recipe not found with id: " + id));
+
+        recipe.setTitle(dto.getTitle());
+        recipe.setDescription(dto.getDescription());
+        recipe.setCookingSteps(dto.getCookingSteps());
+        recipe.setCookingTimeMinutes(dto.getCookingTimeMinutes());
+        recipe.setDifficulty(dto.getDifficulty());
+        recipe.setServings(dto.getServings());
+        recipe.setCategory(dto.getCategory());
+        recipe.setImageUrl(dto.getImageUrl());
+
+        // Удаляем старые ингредиенты
+        recipeIngredientRepository.deleteByRecipeId(id);
+
+        // Добавляем новые
+        if (dto.getIngredients() != null) {
+            for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
+                Product product = productRepository.findById(ingrDto.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + ingrDto.getProductId()));
+
+                RecipeIngredient ingredient = new RecipeIngredient();
+                ingredient.setRecipe(recipe);
+                ingredient.setProduct(product);
+                ingredient.setQuantity(ingrDto.getQuantity());
+                ingredient.setUnit(ingrDto.getUnit());
+
+                recipeIngredientRepository.save(ingredient);
+            }
+        }
+
+        return convertToDTO(recipe);
+    }
+
+    @Transactional
+    public void deleteRecipe(Long id) {
+        Recipe recipe = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Recipe not found with id: " + id));
+
+        // Удаляем связанные записи
+        userFavoriteRepository.deleteByRecipeId(id);
+        recipeIngredientRepository.deleteByRecipeId(id);
+        recipeRepository.delete(recipe);
+    }
+
+    public List<RecipeDTO> getAllRecipesForAdmin() {
+        return recipeRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
 }

@@ -1,10 +1,13 @@
 package org.cooking.cookingbenefits.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.cooking.cookingbenefits.dto.RecipeDTO;
 import org.cooking.cookingbenefits.entity.User;
 import org.cooking.cookingbenefits.service.RecipeService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,5 +69,31 @@ public class RecipeController {
     public ResponseEntity<List<RecipeDTO>> getFavorites(@AuthenticationPrincipal User user) {
         List<RecipeDTO> favorites = recipeService.getUserFavorites(user.getId());
         return ResponseEntity.ok(favorites);
+    }
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RecipeDTO> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
+        RecipeDTO created = recipeService.createRecipe(recipeDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RecipeDTO> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
+        RecipeDTO updated = recipeService.updateRecipe(id, recipeDTO);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteRecipe(@PathVariable Long id) {
+        recipeService.deleteRecipe(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<RecipeDTO>> getAllRecipesForAdmin() {
+        return ResponseEntity.ok(recipeService.getAllRecipesForAdmin());
     }
 }
