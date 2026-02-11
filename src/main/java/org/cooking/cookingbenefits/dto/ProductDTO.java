@@ -8,7 +8,7 @@ public class ProductDTO {
     private Long id;
     private String name;
     private String category;
-    private Boolean isCommon; // Добавьте это поле
+    private Boolean isCommon;
     private LocalDateTime addedAt;
 
 }
