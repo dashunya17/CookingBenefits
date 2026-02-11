@@ -19,6 +19,7 @@ public class RecipeService {
     private final UserExcludedProductRepository userExclusionRepository;
     private final RecipeIngredientRepository recipeIngredientRepository;
     private final UserFavoriteRepository userFavoriteRepository;
+    private final ProductRepository productRepository;
 
     public List<RecipeDTO> getRecommendedRecipes(Long userId, int limit) {
         // 1. Получить доступные продукты пользователя
