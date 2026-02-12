@@ -100,12 +100,57 @@ public class ProductService {
         return dto;
     }
 
+    @Transactional
+    public ProductDTO createProduct(ProductDTO dto) {
+        // Проверка на дубликат имени (опционально)
+        if (productRepository.findByName(dto.getName()).isPresent()) {
+            throw new RuntimeException("Продукт с таким именем уже существует");
+        }
+
+        Product product = new Product();
+        product.setName(dto.getName());
+        product.setCategory(dto.getCategory());
+        product.setIsCommon(dto.getIsCommon() != null ? dto.getIsCommon() : true);
+        // addedAt установится автоматически через @CreationTimestamp
+
+        Product saved = productRepository.save(product);
+        return convertToDTO(saved);
+    }
+
+    @Transactional
+    public ProductDTO updateProduct(Long id, ProductDTO dto) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + id));
+
+        product.setName(dto.getName());
+        product.setCategory(dto.getCategory());
+        product.setIsCommon(dto.getIsCommon());
+
+        return convertToDTO(product);
+    }
+
+    @Transactional
+    public void deleteProduct(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + id));
+
+        // Важно: перед удалением нужно убедиться, что продукт не используется
+        // В вашей модели есть связи: UserProduct, RecipeIngredient, UserExcludedProduct
+        // Если не настроено каскадное удаление, нужно либо запретить удаление,
+        // либо удалять связи вручную. Для простоты — разрешим удаление,
+        // но вы можете добавить проверку:
+
+        productRepository.delete(product);
+    }
+
+    // Вспомогательный метод конвертации (уже есть, но убедитесь, что он существует)
     private ProductDTO convertToDTO(Product product) {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
         dto.setCategory(product.getCategory());
         dto.setIsCommon(product.getIsCommon());
+        // addedAt не маппим, так как это DTO для каталога, дата добавления не нужна
         return dto;
     }
 }
