@@ -27,24 +27,32 @@ public class ProductService {
 
     public List<ProductDTO> getUserProducts(Long userId) {
         return userProductRepository.findByUserId(userId).stream()
-                .map(this::convertToDTO)
+                .map(this::convertToUserProductDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public void addUserProduct(Long userId, ProductDTO productDTO) {
+    public synchronized void addUserProduct(Long userId, ProductDTO productDTO) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
-        Product product = productRepository.findById(productDTO.getId())
-                .orElseGet(() -> {
-                    // Создаем новый продукт если не существует
-                    Product newProduct = new Product();
-                    newProduct.setName(productDTO.getName());
-                    newProduct.setCategory(productDTO.getCategory());
-                    newProduct.setIsCommon(false); // Пользовательский продукт
-                    return productRepository.save(newProduct);
-                });
+        Product product;
+
+        // Если пришел существующий продукт (с ID)
+        if (productDTO.getId() != null) {
+            product = productRepository.findById(productDTO.getId())
+                    .orElseThrow(() -> new RuntimeException("Продукт не найден"));
+        } else {
+            // Если это новый продукт
+            product = productRepository.findByName(productDTO.getName())
+                    .orElseGet(() -> {
+                        Product newProduct = new Product();
+                        newProduct.setName(productDTO.getName());
+                        newProduct.setCategory(productDTO.getCategory());
+                        newProduct.setIsCommon(false);
+                        return productRepository.save(newProduct);
+                    });
+        }
 
         // Проверяем, не добавлен ли уже
         if (!userProductRepository.existsByUserIdAndProductId(userId, product.getId())) {
@@ -56,7 +64,7 @@ public class ProductService {
     }
 
     @Transactional
-    public void removeUserProduct(Long userId, Long productId) {
+    public synchronized void removeUserProduct(Long userId, Long productId) {
         userProductRepository.deleteByUserIdAndProductId(userId, productId);
     }
 
@@ -71,9 +79,10 @@ public class ProductService {
         }
 
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToProductDTO)
                 .collect(Collectors.toList());
     }
+
     @Transactional
     public void addExclusion(Long userId, Long productId, String reason) {
         User user = userRepository.findById(userId)
@@ -89,7 +98,8 @@ public class ProductService {
         }
     }
 
-    private ProductDTO convertToDTO(UserProduct userProduct) {
+    // DTO для UserProduct (с addedAt)
+    private ProductDTO convertToUserProductDTO(UserProduct userProduct) {
         ProductDTO dto = new ProductDTO();
         dto.setId(userProduct.getProduct().getId());
         dto.setName(userProduct.getProduct().getName());
@@ -99,9 +109,19 @@ public class ProductService {
         return dto;
     }
 
+    // DTO для Product (без addedAt)
+    private ProductDTO convertToProductDTO(Product product) {
+        ProductDTO dto = new ProductDTO();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setCategory(product.getCategory());
+        dto.setIsCommon(product.getIsCommon());
+        return dto;
+    }
+
     @Transactional
     public ProductDTO createProduct(ProductDTO dto) {
-        // Проверка на дубликат имени (опционально)
+        // Проверка на дубликат имени
         if (productRepository.findByName(dto.getName()).isPresent()) {
             throw new RuntimeException("Продукт с таким именем уже существует");
         }
@@ -110,10 +130,9 @@ public class ProductService {
         product.setName(dto.getName());
         product.setCategory(dto.getCategory());
         product.setIsCommon(dto.getIsCommon() != null ? dto.getIsCommon() : true);
-        // addedAt установится автоматически через @CreationTimestamp
 
         Product saved = productRepository.save(product);
-        return convertToDTO(saved);
+        return convertToProductDTO(saved);
     }
 
     @Transactional
@@ -125,7 +144,7 @@ public class ProductService {
         product.setCategory(dto.getCategory());
         product.setIsCommon(dto.getIsCommon());
 
-        return convertToDTO(product);
+        return convertToProductDTO(product);
     }
 
     @Transactional
@@ -133,28 +152,17 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + id));
 
-        // Важно: перед удалением нужно убедиться, что продукт не используется
-        // В вашей модели есть связи: UserProduct, RecipeIngredient, UserExcludedProduct
-        // Если не настроено каскадное удаление, нужно либо запретить удаление,
-        // либо удалять связи вручную. Для простоты — разрешим удаление,
-        // но вы можете добавить проверку:
+        // Проверяем, используется ли продукт
+        if (!userProductRepository.findByUserId(id).isEmpty()) {
+            throw new RuntimeException("Нельзя удалить продукт, который используется пользователями");
+        }
 
         productRepository.delete(product);
     }
 
-    // Вспомогательный метод конвертации (уже есть, но убедитесь, что он существует)
-    private ProductDTO convertToDTO(Product product) {
-        ProductDTO dto = new ProductDTO();
-        dto.setId(product.getId());
-        dto.setName(product.getName());
-        dto.setCategory(product.getCategory());
-        dto.setIsCommon(product.getIsCommon());
-        // addedAt не маппим, так как это DTO для каталога, дата добавления не нужна
-        return dto;
-    }
     public List<ProductDTO> getAllProductsForAdmin() {
         return productRepository.findAll().stream()
-                .map(this::convertToDTO)
+                .map(this::convertToProductDTO)
                 .collect(Collectors.toList());
     }
 }
