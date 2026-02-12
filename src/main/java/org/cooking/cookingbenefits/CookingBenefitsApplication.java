@@ -8,5 +8,4 @@ public class CookingBenefitsApplication {
     public static void main(String[] args) {
         SpringApplication.run(CookingBenefitsApplication.class, args);
     }
-
 }
