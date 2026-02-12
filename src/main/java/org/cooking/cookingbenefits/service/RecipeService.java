@@ -18,11 +18,12 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final UserProductRepository userProductRepository;
+    private final UserExcludedProductRepository userExclusionRepository;
     private final RecipeIngredientRepository recipeIngredientRepository;
     private final UserFavoriteRepository userFavoriteRepository;
     private final ProductRepository productRepository;
 
-    // ✅ ПОЛУЧЕНИЕ РЕКОМЕНДАЦИЙ - ИСПРАВЛЕНО!
+    // ✅ ПОЛУЧЕНИЕ РЕКОМЕНДАЦИЙ
     public List<RecipeDTO> getRecommendedRecipes(Long userId, int limit) {
         try {
             log.info("Получение рекомендаций для пользователя: {}", userId);
@@ -34,14 +35,13 @@ public class RecipeService {
                 return new ArrayList<>();
             }
 
-            Set<Long> availableProductIds = Collections.emptySet();
+            Set<Long> availableProductIds = userProductRepository.findByUserId(userId).stream()
+                    .map(up -> up.getProduct().getId())
+                    .collect(Collectors.toSet());
 
-            // Получаем продукты пользователя, если он авторизован
-            if (userId != null) {
-                availableProductIds = userProductRepository.findByUserId(userId).stream()
-                        .map(up -> up.getProduct().getId())
-                        .collect(Collectors.toSet());
-            }
+            Set<Long> excludedProductIds = userExclusionRepository.findByUserId(userId).stream()
+                    .map(ue -> ue.getProduct().getId())
+                    .collect(Collectors.toSet());
 
             List<RecipeDTO> recommendations = new ArrayList<>();
 
@@ -53,25 +53,27 @@ public class RecipeService {
                     List<RecipeIngredient> ingredients = recipeIngredientRepository.findByRecipeId(recipe.getId());
                     int totalIngredients = ingredients.size();
                     int availableCount = 0;
+                    int excludedCount = 0;
 
-                    if (totalIngredients > 0) {
-                        for (RecipeIngredient ingredient : ingredients) {
-                            if (availableProductIds.contains(ingredient.getProduct().getId())) {
-                                availableCount++;
-                            }
+                    for (RecipeIngredient ingredient : ingredients) {
+                        Long productId = ingredient.getProduct().getId();
+                        if (excludedProductIds.contains(productId)) {
+                            excludedCount++;
+                        } else if (availableProductIds.contains(productId)) {
+                            availableCount++;
                         }
-                        double matchPercentage = (double) availableCount / totalIngredients * 100;
-                        dto.setMatchPercentage(Math.round(matchPercentage * 10) / 10.0);
-                    } else {
-                        dto.setMatchPercentage(0.0);
                     }
 
-                    // Проверяем избранное
-                    if (userId != null) {
-                        dto.setIsFavorite(userFavoriteRepository.existsByUserIdAndRecipeId(userId, recipe.getId()));
-                    } else {
-                        dto.setIsFavorite(false);
+                    double matchPercentage = 0;
+                    if (totalIngredients > 0) {
+                        matchPercentage = (double) availableCount / totalIngredients * 100;
+                        if (excludedCount > 0) {
+                            matchPercentage *= 0.5; // Штраф за исключенные
+                        }
                     }
+
+                    dto.setMatchPercentage(Math.round(matchPercentage * 10) / 10.0);
+                    dto.setIsFavorite(userFavoriteRepository.existsByUserIdAndRecipeId(userId, recipe.getId()));
 
                     recommendations.add(dto);
                 } catch (Exception e) {
@@ -79,7 +81,6 @@ public class RecipeService {
                 }
             }
 
-            // Сортируем по проценту совпадения
             recommendations.sort((a, b) ->
                     Double.compare(b.getMatchPercentage(), a.getMatchPercentage()));
 
@@ -87,38 +88,170 @@ public class RecipeService {
 
         } catch (Exception e) {
             log.error("Ошибка в getRecommendedRecipes", e);
-            return new ArrayList<>(); // НИКОГДА НЕ ВОЗВРАЩАЕМ 500!
+            return new ArrayList<>();
+        }
+    }
+
+    // ✅ ПОИСК РЕЦЕПТОВ
+    public List<RecipeDTO> searchRecipes(String query, List<Long> productIds, int minIngredients) {
+        try {
+            List<Recipe> recipes;
+
+            if (query != null && !query.isEmpty()) {
+                recipes = recipeRepository.findByTitleContainingIgnoreCase(query);
+            } else if (productIds != null && !productIds.isEmpty()) {
+                recipes = recipeRepository.findRecipesByProducts(productIds, minIngredients);
+            } else {
+                recipes = recipeRepository.findByIsApprovedTrue();
+            }
+
+            return recipes.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Ошибка в searchRecipes", e);
+            return new ArrayList<>();
         }
     }
 
     // ✅ ПОЛУЧЕНИЕ РЕЦЕПТА ПО ID
     public RecipeDTO getRecipeById(Long recipeId) {
         Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Рецепт не найден"));
+                .orElseThrow(() -> new RuntimeException("Рецепт не найден с id: " + recipeId));
         return convertToDTO(recipe);
     }
 
     // ✅ ДОБАВЛЕНИЕ В ИЗБРАННОЕ
     @Transactional
     public void addToFavorites(Long userId, Long recipeId) {
+        log.info("Добавление в избранное. UserId: {}, RecipeId: {}", userId, recipeId);
+
         if (!userFavoriteRepository.existsByUserIdAndRecipeId(userId, recipeId)) {
             UserFavorite favorite = new UserFavorite();
             favorite.setUser(User.builder().id(userId).build());
             favorite.setRecipe(Recipe.builder().id(recipeId).build());
             userFavoriteRepository.save(favorite);
+            log.info("Рецепт добавлен в избранное");
         }
     }
 
     // ✅ УДАЛЕНИЕ ИЗ ИЗБРАННОГО
     @Transactional
     public void removeFromFavorites(Long userId, Long recipeId) {
+        log.info("Удаление из избранного. UserId: {}, RecipeId: {}", userId, recipeId);
         userFavoriteRepository.deleteByUserIdAndRecipeId(userId, recipeId);
+        log.info("Рецепт удален из избранного");
     }
 
     // ✅ ПОЛУЧЕНИЕ ИЗБРАННОГО
     public List<RecipeDTO> getUserFavorites(Long userId) {
         return userFavoriteRepository.findByUserId(userId).stream()
                 .map(favorite -> convertToDTO(favorite.getRecipe()))
+                .collect(Collectors.toList());
+    }
+
+    // ✅ СОЗДАНИЕ РЕЦЕПТА (АДМИН)
+    @Transactional
+    public RecipeDTO createRecipe(RecipeDTO dto) {
+        log.info("Создание нового рецепта: {}", dto.getTitle());
+
+        Recipe recipe = new Recipe();
+        recipe.setTitle(dto.getTitle());
+        recipe.setDescription(dto.getDescription());
+        recipe.setCookingSteps(dto.getCookingSteps());
+        recipe.setCookingTimeMinutes(dto.getCookingTimeMinutes());
+        recipe.setDifficulty(dto.getDifficulty());
+        recipe.setServings(dto.getServings());
+        recipe.setCategory(dto.getCategory());
+        recipe.setImageUrl(dto.getImageUrl());
+        recipe.setIsApproved(true);
+
+        Recipe savedRecipe = recipeRepository.save(recipe);
+        log.info("Рецепт создан с id: {}", savedRecipe.getId());
+
+        // Добавляем ингредиенты
+        if (dto.getIngredients() != null && !dto.getIngredients().isEmpty()) {
+            for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
+                Product product = productRepository.findById(ingrDto.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + ingrDto.getProductId()));
+
+                RecipeIngredient ingredient = new RecipeIngredient();
+                ingredient.setRecipe(savedRecipe);
+                ingredient.setProduct(product);
+                ingredient.setQuantity(ingrDto.getQuantity());
+                ingredient.setUnit(ingrDto.getUnit());
+
+                recipeIngredientRepository.save(ingredient);
+                log.info("Добавлен ингредиент: {}", product.getName());
+            }
+        }
+
+        return convertToDTO(savedRecipe);
+    }
+
+    // ✅ ОБНОВЛЕНИЕ РЕЦЕПТА (АДМИН) - ИСПРАВЛЕНО!
+    @Transactional
+    public RecipeDTO updateRecipe(Long id, RecipeDTO dto) {
+        log.info("Обновление рецепта с id: {}", id);
+
+        Recipe recipe = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Рецепт не найден с id: " + id));
+
+        recipe.setTitle(dto.getTitle());
+        recipe.setDescription(dto.getDescription());
+        recipe.setCookingSteps(dto.getCookingSteps());
+        recipe.setCookingTimeMinutes(dto.getCookingTimeMinutes());
+        recipe.setDifficulty(dto.getDifficulty());
+        recipe.setServings(dto.getServings());
+        recipe.setCategory(dto.getCategory());
+        recipe.setImageUrl(dto.getImageUrl());
+
+        Recipe updatedRecipe = recipeRepository.save(recipe);
+        log.info("Рецепт обновлен");
+
+        // Удаляем старые ингредиенты
+        recipeIngredientRepository.deleteByRecipeId(id);
+
+        // Добавляем новые ингредиенты
+        if (dto.getIngredients() != null && !dto.getIngredients().isEmpty()) {
+            for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
+                Product product = productRepository.findById(ingrDto.getProductId())
+                        .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + ingrDto.getProductId()));
+
+                RecipeIngredient ingredient = new RecipeIngredient();
+                ingredient.setRecipe(updatedRecipe);
+                ingredient.setProduct(product);
+                ingredient.setQuantity(ingrDto.getQuantity());
+                ingredient.setUnit(ingrDto.getUnit());
+
+                recipeIngredientRepository.save(ingredient);
+            }
+            log.info("Ингредиенты обновлены");
+        }
+
+        return convertToDTO(updatedRecipe);
+    }
+
+    // ✅ УДАЛЕНИЕ РЕЦЕПТА (АДМИН) - ИСПРАВЛЕНО!
+    @Transactional
+    public void deleteRecipe(Long id) {
+        log.info("Удаление рецепта с id: {}", id);
+
+        Recipe recipe = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Рецепт не найден с id: " + id));
+
+        // Удаляем связанные записи
+        userFavoriteRepository.deleteByRecipeId(id);
+        recipeIngredientRepository.deleteByRecipeId(id);
+        recipeRepository.delete(recipe);
+
+        log.info("Рецепт удален: {}", recipe.getTitle());
+    }
+
+    // ✅ ВСЕ РЕЦЕПТЫ ДЛЯ АДМИНА
+    public List<RecipeDTO> getAllRecipesForAdmin() {
+        return recipeRepository.findAll().stream()
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -155,46 +288,5 @@ public class RecipeService {
         dto.setQuantity(ingredient.getQuantity());
         dto.setUnit(ingredient.getUnit());
         return dto;
-    }
-
-    // ✅ АДМИН: СОЗДАНИЕ РЕЦЕПТА
-    @Transactional
-    public RecipeDTO createRecipe(RecipeDTO dto) {
-        Recipe recipe = new Recipe();
-        recipe.setTitle(dto.getTitle());
-        recipe.setDescription(dto.getDescription());
-        recipe.setCookingSteps(dto.getCookingSteps());
-        recipe.setCookingTimeMinutes(dto.getCookingTimeMinutes());
-        recipe.setDifficulty(dto.getDifficulty());
-        recipe.setServings(dto.getServings());
-        recipe.setCategory(dto.getCategory());
-        recipe.setImageUrl(dto.getImageUrl());
-        recipe.setIsApproved(true);
-
-        Recipe savedRecipe = recipeRepository.save(recipe);
-
-        if (dto.getIngredients() != null) {
-            for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
-                Product product = productRepository.findById(ingrDto.getProductId())
-                        .orElseThrow(() -> new RuntimeException("Product not found"));
-
-                RecipeIngredient ingredient = new RecipeIngredient();
-                ingredient.setRecipe(savedRecipe);
-                ingredient.setProduct(product);
-                ingredient.setQuantity(ingrDto.getQuantity());
-                ingredient.setUnit(ingrDto.getUnit());
-
-                recipeIngredientRepository.save(ingredient);
-            }
-        }
-
-        return convertToDTO(savedRecipe);
-    }
-
-    // ✅ АДМИН: ВСЕ РЕЦЕПТЫ
-    public List<RecipeDTO> getAllRecipesForAdmin() {
-        return recipeRepository.findAll().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
     }
 }

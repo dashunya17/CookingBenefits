@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.cooking.cookingbenefits.dto.ProductDTO;
 import org.cooking.cookingbenefits.entity.Product;
 import org.cooking.cookingbenefits.entity.User;
+import org.cooking.cookingbenefits.entity.UserExcludedProduct;
 import org.cooking.cookingbenefits.entity.UserProduct;
 import org.cooking.cookingbenefits.repository.ProductRepository;
+import org.cooking.cookingbenefits.repository.UserExcludedProductRepository;
 import org.cooking.cookingbenefits.repository.UserProductRepository;
 import org.cooking.cookingbenefits.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final UserProductRepository userProductRepository;
+    private final UserExcludedProductRepository userExcludedProductRepository;
     private final UserRepository userRepository;
 
     // ✅ ПОЛУЧЕНИЕ ПРОДУКТОВ ПОЛЬЗОВАТЕЛЯ
@@ -31,7 +34,7 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ ДОБАВЛЕНИЕ ПРОДУКТА ПОЛЬЗОВАТЕЛЮ (ИСПРАВЛЕНО!)
+    // ✅ ДОБАВЛЕНИЕ ПРОДУКТА ПОЛЬЗОВАТЕЛЮ
     @Transactional
     public synchronized void addUserProduct(Long userId, ProductDTO productDTO) {
         log.info("Добавление продукта пользователю. UserId: {}, ProductId: {}", userId, productDTO.getId());
@@ -59,7 +62,7 @@ public class ProductService {
         userProductRepository.deleteByUserIdAndProductId(userId, productId);
     }
 
-    // ✅ КАТАЛОГ ПРОДУКТОВ - ГЛАВНОЕ ИСПРАВЛЕНИЕ!
+    // ✅ КАТАЛОГ ПРОДУКТОВ
     public List<ProductDTO> getProductCatalog(String category, String search) {
         List<Product> products;
 
@@ -68,13 +71,31 @@ public class ProductService {
         } else if (search != null && !search.isEmpty() && !search.equals("null")) {
             products = productRepository.findByNameContainingIgnoreCase(search);
         } else {
-            // ✅ ВАЖНО: ПОКАЗЫВАЕМ ВСЕ ПРОДУКТЫ!
-            products = productRepository.findAll();
+            products = productRepository.findAll(); // ВСЕ ПРОДУКТЫ!
         }
 
         return products.stream()
                 .map(this::convertToProductDTO)
                 .collect(Collectors.toList());
+    }
+
+    // ✅ ДОБАВЛЕНИЕ ИСКЛЮЧЕНИЯ (НОВЫЙ МЕТОД!)
+    @Transactional
+    public void addExclusion(Long userId, Long productId, String reason) {
+        log.info("Добавление исключения. UserId: {}, ProductId: {}", userId, productId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Продукт не найден"));
+
+        if (!userExcludedProductRepository.existsByUserIdAndProductId(userId, productId)) {
+            UserExcludedProduct exclusion = new UserExcludedProduct();
+            exclusion.setUser(user);
+            exclusion.setProduct(product);
+            userExcludedProductRepository.save(exclusion);
+            log.info("Исключение успешно добавлено");
+        }
     }
 
     // ✅ СОЗДАНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
@@ -90,7 +111,44 @@ public class ProductService {
         product.setIsCommon(dto.getIsCommon() != null ? dto.getIsCommon() : true);
 
         Product saved = productRepository.save(product);
+        log.info("Создан новый продукт: {}", saved.getName());
         return convertToProductDTO(saved);
+    }
+
+    // ✅ ОБНОВЛЕНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
+    @Transactional
+    public ProductDTO updateProduct(Long id, ProductDTO dto) {
+        log.info("Обновление продукта с id: {}", id);
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + id));
+
+        product.setName(dto.getName());
+        product.setCategory(dto.getCategory());
+        product.setIsCommon(dto.getIsCommon() != null ? dto.getIsCommon() : product.getIsCommon());
+
+        Product updated = productRepository.save(product);
+        log.info("Продукт обновлен: {}", updated.getName());
+        return convertToProductDTO(updated);
+    }
+
+    // ✅ УДАЛЕНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
+    @Transactional
+    public void deleteProduct(Long id) {
+        log.info("Удаление продукта с id: {}", id);
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Продукт не найден с id: " + id));
+
+        productRepository.delete(product);
+        log.info("Продукт удален: {}", product.getName());
+    }
+
+    // ✅ ВСЕ ПРОДУКТЫ ДЛЯ АДМИНА
+    public List<ProductDTO> getAllProductsForAdmin() {
+        return productRepository.findAll().stream()
+                .map(this::convertToProductDTO)
+                .collect(Collectors.toList());
     }
 
     // ✅ КОНВЕРТЕРЫ
@@ -111,12 +169,5 @@ public class ProductService {
         dto.setCategory(product.getCategory());
         dto.setIsCommon(product.getIsCommon());
         return dto;
-    }
-
-    // ✅ ДЛЯ АДМИНА - ВСЕ ПРОДУКТЫ
-    public List<ProductDTO> getAllProductsForAdmin() {
-        return productRepository.findAll().stream()
-                .map(this::convertToProductDTO)
-                .collect(Collectors.toList());
     }
 }
