@@ -152,4 +152,9 @@ public class ProductService {
         // addedAt не маппим, так как это DTO для каталога, дата добавления не нужна
         return dto;
     }
+    public List<ProductDTO> getAllProductsForAdmin() {
+        return productRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
 }

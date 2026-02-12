@@ -81,4 +81,10 @@ public class ProductController {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ProductDTO>> getAllProductsForAdmin() {
+        List<ProductDTO> products = productService.getAllProductsForAdmin();
+        return ResponseEntity.ok(products);
+    }
 }
