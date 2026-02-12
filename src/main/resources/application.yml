@@ -3,7 +3,7 @@ spring:
     name: healthy-food-backend
 
   datasource:
-    url: jdbc:postgresql://dpg-d5ug2fnfte5s73ealms0-a:5432/cooking_v0g5?sslmode=require
+    url:  jdbc:postgresql://dpg-d5ug2fnfte5s73ealms0-a.frankfurt-postgres.render.com:5432/cooking_v0g5?sslmode=require
     username: root
     password: 78RAnG0eIxlXycr8b2tkJjBUPMwmA3pK
     driver-class-name: org.postgresql.Driver
