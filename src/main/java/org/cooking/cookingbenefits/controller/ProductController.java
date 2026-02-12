@@ -43,7 +43,6 @@ public class ProductController {
         productService.removeUserProduct(user.getId(), productId);
         return ResponseEntity.ok().build();
     }
-
     @GetMapping("/catalog")
     public ResponseEntity<List<ProductDTO>> getProductCatalog(
             @RequestParam(required = false) String category,

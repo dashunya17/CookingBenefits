@@ -74,7 +74,6 @@ public class ProductService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
-
     @Transactional
     public void addExclusion(Long userId, Long productId, String reason) {
         User user = userRepository.findById(userId)

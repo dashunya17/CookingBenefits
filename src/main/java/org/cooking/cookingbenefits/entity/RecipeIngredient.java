@@ -10,13 +10,13 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"recipe", "product"}) // Исключаем связи из toString
-@EqualsAndHashCode(onlyExplicitlyIncluded = true) // или только по id
+@ToString(exclude = {"recipe", "product"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class RecipeIngredient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include // Если хотите включить id в equals/hashCode
+    @EqualsAndHashCode.Include
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

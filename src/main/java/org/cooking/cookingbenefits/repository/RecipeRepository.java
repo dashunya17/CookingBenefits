@@ -13,7 +13,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     List<Recipe> findByIsApprovedTrue();
     List<Recipe> findByTitleContainingIgnoreCase(String title);
-
     @Query("SELECT DISTINCT r FROM Recipe r " +
             "JOIN r.ingredients ri " +
             "WHERE r.isApproved = true " +
