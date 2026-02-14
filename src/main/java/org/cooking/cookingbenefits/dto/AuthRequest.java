@@ -13,5 +13,5 @@ public class AuthRequest {
     @NotBlank(message = "Пароль обязателен")
     private String password;
 
-    private String fullName; // Только для регистрации
+    private String fullName;
 }

@@ -26,33 +26,27 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtTokenUtil;
-    private final UserDetailsService userDetailsService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest authRequest) {
-        // Аутентификация
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        authRequest.getEmail(), // Используем email
+                        authRequest.getEmail(),
                         authRequest.getPassword()
                 )
         );
 
-        // Генерация токена
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         String token = jwtTokenUtil.generateToken(userDetails);
 
-        // Получение пользователя
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
-        // Обновление времени последнего входа
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // Используем конструктор напрямую
         return ResponseEntity.ok(new AuthResponse(
                 token,
                 "Bearer",
@@ -65,12 +59,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody AuthRequest authRequest) {
-        // Проверка существования пользователя
         if (userRepository.existsByEmail(authRequest.getEmail())) {
             return ResponseEntity.badRequest().body("{\"error\": \"Email уже используется\"}");
         }
 
-        // Создание нового пользователя
         User user = new User();
         user.setEmail(authRequest.getEmail());
         user.setPasswordHash(passwordEncoder.encode(authRequest.getPassword()));
@@ -80,7 +72,6 @@ public class AuthController {
 
         userRepository.save(user);
 
-        // Автоматический логин после регистрации
         return login(authRequest);
     }
 

@@ -15,7 +15,6 @@ public class AuthResponse {
     private String fullName;
     private String role;
 
-    // Конструктор без type
     public AuthResponse(String token, Long userId, String email, String fullName, String role) {
         this.token = token;
         this.userId = userId;

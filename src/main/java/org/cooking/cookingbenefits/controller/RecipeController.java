@@ -37,13 +37,13 @@ public class RecipeController {
             @RequestParam(required = false) List<Long> productIds,
             @RequestParam(defaultValue = "0") int minIngredients) {
 
-        // Реализация поиска
+
         return ResponseEntity.ok(Collections.emptyList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<RecipeDTO> getRecipeById(@PathVariable Long id) {
-        // Получение деталей рецепта
+
         return ResponseEntity.ok(recipeService.getRecipeById(id));
     }
 

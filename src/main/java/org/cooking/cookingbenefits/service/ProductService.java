@@ -27,14 +27,12 @@ public class ProductService {
     private final UserExcludedProductRepository userExcludedProductRepository;
     private final UserRepository userRepository;
 
-    // ✅ ПОЛУЧЕНИЕ ПРОДУКТОВ ПОЛЬЗОВАТЕЛЯ
     public List<ProductDTO> getUserProducts(Long userId) {
         return userProductRepository.findByUserId(userId).stream()
                 .map(this::convertToUserProductDTO)
                 .collect(Collectors.toList());
     }
 
-    // ✅ ДОБАВЛЕНИЕ ПРОДУКТА ПОЛЬЗОВАТЕЛЮ
     @Transactional
     public synchronized void addUserProduct(Long userId, ProductDTO productDTO) {
         log.info("Добавление продукта пользователю. UserId: {}, ProductId: {}", userId, productDTO.getId());
@@ -56,13 +54,11 @@ public class ProductService {
         }
     }
 
-    // ✅ УДАЛЕНИЕ ПРОДУКТА У ПОЛЬЗОВАТЕЛЯ
     @Transactional
     public synchronized void removeUserProduct(Long userId, Long productId) {
         userProductRepository.deleteByUserIdAndProductId(userId, productId);
     }
 
-    // ✅ КАТАЛОГ ПРОДУКТОВ
     public List<ProductDTO> getProductCatalog(String category, String search) {
         List<Product> products;
 
@@ -79,7 +75,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ ДОБАВЛЕНИЕ ИСКЛЮЧЕНИЯ (НОВЫЙ МЕТОД!)
     @Transactional
     public void addExclusion(Long userId, Long productId, String reason) {
         log.info("Добавление исключения. UserId: {}, ProductId: {}", userId, productId);
@@ -98,7 +93,6 @@ public class ProductService {
         }
     }
 
-    // ✅ СОЗДАНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
     @Transactional
     public ProductDTO createProduct(ProductDTO dto) {
         if (productRepository.findByName(dto.getName()).isPresent()) {
@@ -115,7 +109,6 @@ public class ProductService {
         return convertToProductDTO(saved);
     }
 
-    // ✅ ОБНОВЛЕНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
     @Transactional
     public ProductDTO updateProduct(Long id, ProductDTO dto) {
         log.info("Обновление продукта с id: {}", id);
@@ -132,7 +125,6 @@ public class ProductService {
         return convertToProductDTO(updated);
     }
 
-    // ✅ УДАЛЕНИЕ ПРОДУКТА (ДЛЯ АДМИНА)
     @Transactional
     public void deleteProduct(Long id) {
         log.info("Удаление продукта с id: {}", id);
@@ -144,14 +136,12 @@ public class ProductService {
         log.info("Продукт удален: {}", product.getName());
     }
 
-    // ✅ ВСЕ ПРОДУКТЫ ДЛЯ АДМИНА
     public List<ProductDTO> getAllProductsForAdmin() {
         return productRepository.findAll().stream()
                 .map(this::convertToProductDTO)
                 .collect(Collectors.toList());
     }
 
-    // ✅ КОНВЕРТЕРЫ
     private ProductDTO convertToUserProductDTO(UserProduct userProduct) {
         ProductDTO dto = new ProductDTO();
         dto.setId(userProduct.getProduct().getId());

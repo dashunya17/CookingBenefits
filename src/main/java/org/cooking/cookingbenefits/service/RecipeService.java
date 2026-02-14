@@ -23,7 +23,6 @@ public class RecipeService {
     private final UserFavoriteRepository userFavoriteRepository;
     private final ProductRepository productRepository;
 
-    // ✅ ПОЛУЧЕНИЕ РЕКОМЕНДАЦИЙ
     public List<RecipeDTO> getRecommendedRecipes(Long userId, int limit) {
         try {
             log.info("Получение рекомендаций для пользователя: {}", userId);
@@ -92,7 +91,6 @@ public class RecipeService {
         }
     }
 
-    // ✅ ПОИСК РЕЦЕПТОВ
     public List<RecipeDTO> searchRecipes(String query, List<Long> productIds, int minIngredients) {
         try {
             List<Recipe> recipes;
@@ -114,14 +112,12 @@ public class RecipeService {
         }
     }
 
-    // ✅ ПОЛУЧЕНИЕ РЕЦЕПТА ПО ID
     public RecipeDTO getRecipeById(Long recipeId) {
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Рецепт не найден с id: " + recipeId));
         return convertToDTO(recipe);
     }
 
-    // ✅ ДОБАВЛЕНИЕ В ИЗБРАННОЕ
     @Transactional
     public void addToFavorites(Long userId, Long recipeId) {
         log.info("Добавление в избранное. UserId: {}, RecipeId: {}", userId, recipeId);
@@ -135,7 +131,6 @@ public class RecipeService {
         }
     }
 
-    // ✅ УДАЛЕНИЕ ИЗ ИЗБРАННОГО
     @Transactional
     public void removeFromFavorites(Long userId, Long recipeId) {
         log.info("Удаление из избранного. UserId: {}, RecipeId: {}", userId, recipeId);
@@ -143,14 +138,12 @@ public class RecipeService {
         log.info("Рецепт удален из избранного");
     }
 
-    // ✅ ПОЛУЧЕНИЕ ИЗБРАННОГО
     public List<RecipeDTO> getUserFavorites(Long userId) {
         return userFavoriteRepository.findByUserId(userId).stream()
                 .map(favorite -> convertToDTO(favorite.getRecipe()))
                 .collect(Collectors.toList());
     }
 
-    // ✅ СОЗДАНИЕ РЕЦЕПТА (АДМИН)
     @Transactional
     public RecipeDTO createRecipe(RecipeDTO dto) {
         log.info("Создание нового рецепта: {}", dto.getTitle());
@@ -169,7 +162,6 @@ public class RecipeService {
         Recipe savedRecipe = recipeRepository.save(recipe);
         log.info("Рецепт создан с id: {}", savedRecipe.getId());
 
-        // Добавляем ингредиенты
         if (dto.getIngredients() != null && !dto.getIngredients().isEmpty()) {
             for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
                 Product product = productRepository.findById(ingrDto.getProductId())
@@ -189,7 +181,6 @@ public class RecipeService {
         return convertToDTO(savedRecipe);
     }
 
-    // ✅ ОБНОВЛЕНИЕ РЕЦЕПТА (АДМИН) - ИСПРАВЛЕНО!
     @Transactional
     public RecipeDTO updateRecipe(Long id, RecipeDTO dto) {
         log.info("Обновление рецепта с id: {}", id);
@@ -209,10 +200,8 @@ public class RecipeService {
         Recipe updatedRecipe = recipeRepository.save(recipe);
         log.info("Рецепт обновлен");
 
-        // Удаляем старые ингредиенты
         recipeIngredientRepository.deleteByRecipeId(id);
 
-        // Добавляем новые ингредиенты
         if (dto.getIngredients() != null && !dto.getIngredients().isEmpty()) {
             for (RecipeDTO.IngredientDTO ingrDto : dto.getIngredients()) {
                 Product product = productRepository.findById(ingrDto.getProductId())
@@ -232,7 +221,6 @@ public class RecipeService {
         return convertToDTO(updatedRecipe);
     }
 
-    // ✅ УДАЛЕНИЕ РЕЦЕПТА (АДМИН) - ИСПРАВЛЕНО!
     @Transactional
     public void deleteRecipe(Long id) {
         log.info("Удаление рецепта с id: {}", id);
@@ -240,7 +228,6 @@ public class RecipeService {
         Recipe recipe = recipeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Рецепт не найден с id: " + id));
 
-        // Удаляем связанные записи
         userFavoriteRepository.deleteByRecipeId(id);
         recipeIngredientRepository.deleteByRecipeId(id);
         recipeRepository.delete(recipe);
@@ -248,14 +235,12 @@ public class RecipeService {
         log.info("Рецепт удален: {}", recipe.getTitle());
     }
 
-    // ✅ ВСЕ РЕЦЕПТЫ ДЛЯ АДМИНА
     public List<RecipeDTO> getAllRecipesForAdmin() {
         return recipeRepository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
-    // ✅ КОНВЕРТЕР
     private RecipeDTO convertToDTO(Recipe recipe) {
         RecipeDTO dto = new RecipeDTO();
         dto.setId(recipe.getId());
@@ -270,7 +255,6 @@ public class RecipeService {
         dto.setMatchPercentage(0.0);
         dto.setIsFavorite(false);
 
-        // Конвертация ингредиентов
         List<RecipeDTO.IngredientDTO> ingredientDTOs =
                 recipeIngredientRepository.findByRecipeId(recipe.getId())
                         .stream()
